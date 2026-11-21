@@ -30,7 +30,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nome\": \"Maria Teste\",\n  \"cpf\": \"{{cpf_novo}}\",\n  \"email\": \"{{email_novo}}\",\n  \"senha\": \"senha1234\",\n  \"data_nascimento\": \"1995-04-12\",\n  \"cidade\": \"Recife\"\n}",
+              "raw": "{\n  \"nome\": \"Maria Teste\",\n  \"cpf\": \"{{cpf_novo}}\",\n  \"email\": \"{{email_novo}}\",\n  \"senha\": \"senha1234\",\n  \"data_nascimento\": \"1995-04-12\",\n  \"cidade\": \"Recife\",\n  \"consentimento_lgpd\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -110,6 +110,49 @@
           ]
         },
         {
+          "name": "Cadastrar cliente (sem aceite da LGPD)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/cadastro",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "cadastro"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Maria Teste\",\n  \"cpf\": \"529.982.247-25\",\n  \"email\": \"semaceite@exemplo.com\",\n  \"senha\": \"senha1234\",\n  \"data_nascimento\": \"1995-04-12\",\n  \"consentimento_lgpd\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Código de erro DADOS_INVALIDOS', function () { pm.expect(pm.response.json().erro).to.eql('DADOS_INVALIDOS'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Cadastrar cliente (e-mail repetido)",
           "request": {
             "method": "POST",
@@ -131,7 +174,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nome\": \"Maria Teste\",\n  \"cpf\": \"{{cpf_outro}}\",\n  \"email\": \"{{email_novo}}\",\n  \"senha\": \"senha1234\",\n  \"data_nascimento\": \"1995-04-12\"\n}",
+              "raw": "{\n  \"nome\": \"Maria Teste\",\n  \"cpf\": \"{{cpf_outro}}\",\n  \"email\": \"{{email_novo}}\",\n  \"senha\": \"senha1234\",\n  \"data_nascimento\": \"1995-04-12\",\n  \"consentimento_lgpd\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -898,7 +941,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id_unidade\": 1,\n  \"canal\": \"APP\",\n  \"itens\": [\n    {\n      \"id_sabor\": 1,\n      \"quantidade\": 2\n    }\n  ]\n}",
+              "raw": "{\n  \"id_unidade\": 1,\n  \"canalPedido\": \"APP\",\n  \"itens\": [\n    {\n      \"id_sabor\": 1,\n      \"quantidade\": 2\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -944,7 +987,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id_unidade\": 1,\n  \"canal\": \"APP\",\n  \"itens\": [\n    {\n      \"id_sabor\": 9999,\n      \"quantidade\": 1\n    }\n  ]\n}",
+              "raw": "{\n  \"id_unidade\": 1,\n  \"canalPedido\": \"APP\",\n  \"itens\": [\n    {\n      \"id_sabor\": 9999,\n      \"quantidade\": 1\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -990,7 +1033,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id_unidade\": 1,\n  \"canal\": \"APP\",\n  \"itens\": [\n    {\n      \"id_sabor\": 1,\n      \"quantidade\": 2\n    }\n  ]\n}",
+              "raw": "{\n  \"id_unidade\": 1,\n  \"canalPedido\": \"APP\",\n  \"itens\": [\n    {\n      \"id_sabor\": 1,\n      \"quantidade\": 2\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1040,6 +1083,72 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar pedidos filtrando por canalPedido",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_cliente}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/pedidos?canalPedido=APP",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pedidos?canalPedido=APP"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Só pedidos do canal APP', function () { const j = pm.response.json(); pm.expect(j.total).to.be.above(0); j.itens.forEach(p => pm.expect(p.canalPedido).to.eql('APP')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar pedidos com canalPedido inválido",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_cliente}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/pedidos?canalPedido=POMBO",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pedidos?canalPedido=POMBO"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Código de erro PARAMETRO_INVALIDO', function () { pm.expect(pm.response.json().erro).to.eql('PARAMETRO_INVALIDO'); });"
                 ]
               }
             }
@@ -1602,7 +1711,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id_unidade\": 1,\n  \"canal\": \"BALCAO\",\n  \"itens\": [\n    {\n      \"id_sabor\": 4,\n      \"quantidade\": 1\n    }\n  ]\n}",
+              "raw": "{\n  \"id_unidade\": 1,\n  \"canalPedido\": \"BALCAO\",\n  \"itens\": [\n    {\n      \"id_sabor\": 4,\n      \"quantidade\": 1\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1754,6 +1863,138 @@
           ]
         }
       ]
+    },
+    {
+      "name": "6. Auditoria",
+      "item": [
+        {
+          "name": "Consultar auditoria do pedido (matriz)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_matriz}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auditoria?id_pedido={{id_pedido}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auditoria?id_pedido={{id_pedido}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Registra criação, pagamento e mudanças de status', function () { const acoes = pm.response.json().itens.map(i => i.acao); ['PEDIDO_CRIADO','PAGAMENTO_SOLICITADO','PAGAMENTO_RETORNO','STATUS_ALTERADO'].forEach(a => pm.expect(acoes).to.include(a)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar auditoria (gerente da unidade)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_gerente}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auditoria?acao=STATUS_ALTERADO",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auditoria?acao=STATUS_ALTERADO"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar auditoria como cliente (sem permissão)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_cliente}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auditoria",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auditoria"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', function () { pm.response.to.have.status(403); });",
+                  "pm.test('Código de erro SEM_PERMISSAO', function () { pm.expect(pm.response.json().erro).to.eql('SEM_PERMISSAO'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar auditoria sem login",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auditoria",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auditoria"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', function () { pm.response.to.have.status(401); });",
+                  "pm.test('Código de erro NAO_AUTENTICADO', function () { pm.expect(pm.response.json().erro).to.eql('NAO_AUTENTICADO'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Depois do fluxo da pasta 4: mostra que as ações sensíveis ficaram registradas."
     }
   ],
   "variable": [

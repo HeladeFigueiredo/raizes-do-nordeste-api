@@ -2,10 +2,23 @@
 
 API REST do sistema de pedidos da rede Raízes do Nordeste (Recife). Projeto de Back-End, curso de Análise e Desenvolvimento de Sistemas.
 
-**Estado atual (fatias 1 a 4):** estrutura, modelos das 13 tabelas, migrações, dados iniciais, autenticação com perfis, cardápio por unidade (com sazonalidade), pedidos e pagamento desacoplado.
-Fora do escopo deste MVP (evolução futura): fidelização, consentimentos LGPD, gestão de equipe, controle de estoque, auditoria, relatórios, cancelamento de pedidos, endpoints `/health` e `/auth/me`.
+**O que a API faz:** cadastro e login de clientes e da equipe (perfis Cliente, Funcionário, Gerente e Matriz), cardápio por unidade com sabores sazonais, criação de pedidos, acompanhamento de status e pagamento desacoplado (o sistema solicita o pagamento a um gateway simulado e registra o resultado recebido dele). São 19 endpoints, 14 tabelas e documentação interativa em Swagger (`/docs`).
 
-**Se você já tinha rodado uma versão anterior**, apague o arquivo do banco em `instance/` e rode `flask db upgrade` e `flask seed` de novo (o histórico de migrações foi reunido em uma única migração inicial). Se o seu `.env` for antigo, acrescente a linha `GATEWAY_API_KEY=chave-do-gateway-dev` (sem ela, esse mesmo valor é usado por padrão).
+**Fora do escopo deste MVP (evolução futura):** fidelização e campanhas, gestão de equipe por API, controle de estoque, relatórios, cancelamento de pedidos e os endpoints `/health` e `/auth/me`.
+
+## Documentação
+
+Na pasta [`docs/`](docs/):
+
+| Arquivo | Conteúdo |
+|---|---|
+| `DER_Raizes_do_Nordeste_MVP.pdf` | Diagrama entidade-relacionamento (14 tabelas) |
+| `Diagrama_de_Classes_MVP.pdf` | Diagrama de classes |
+| `Diagrama_Casos_de_Uso_MVP.pdf` | Diagrama de casos de uso |
+| `Descricao_dos_Endpoints_API_MVP.pdf` | Descrição dos 19 endpoints, regras e exemplos |
+| `Raizes_do_Nordeste_API.postman_collection.json` | Coleção do Postman com 46 requisições e testes automáticos |
+
+**Como usar a coleção:** rode `flask run`, importe o arquivo no Postman e use *Run collection*. Os logins de teste são `cliente@exemplo.com`, `funcionario`, `gerente` e `matriz`, todos com a senha `senha123` (criados pelo `flask seed`).
 
 ## Endpoints disponíveis
 
@@ -13,7 +26,7 @@ Base: `/api/v1`
 
 | Método | Rota | Quem acessa | Descrição |
 |--------|------|-------------|-----------|
-| POST | `/auth/cadastro` | Público | Cadastra cliente (CPF validado, senha com hash) |
+| POST | `/auth/cadastro` | Público | Cadastra cliente (CPF validado, senha com hash, aceite da LGPD obrigatório) |
 | POST | `/auth/login` | Público | Login do cliente (e-mail) ou da equipe (login). Devolve o token JWT |
 | GET | `/unidades` | Público | Lista unidades. Filtros `?cidade=` e `?regiao=`, paginação `?pagina=&tamanho=` |
 | POST | `/unidades` | MATRIZ | Cria unidade (`tipo_cozinha`: COMPLETA ou REDUZIDA) |
@@ -23,14 +36,15 @@ Base: `/api/v1`
 | POST | `/produtos` | MATRIZ | Cria produto (ex.: tapioca) |
 | POST | `/produtos/{id}/sabores` | MATRIZ | Cria sabor com preço base e período de venda opcional |
 | PUT | `/sabores/{id}` | MATRIZ | Atualiza nome, preço base ou período (parcial) |
-| POST | `/pedidos` | CLIENTE, FUNCIONARIO, GERENTE | Cria pedido: valida disponibilidade na unidade e na época, grava o preço do momento, calcula o total |
-| GET | `/pedidos` | Autenticado | Lista pedidos. Filtros `id_unidade`, `status`, `data_inicio`, `data_fim`. Cliente vê só os seus, equipe só a própria unidade |
+| POST | `/pedidos` | CLIENTE, FUNCIONARIO, GERENTE | Cria pedido (`canalPedido` obrigatório: APP, TOTEM, BALCAO, PICKUP ou WEB): valida disponibilidade na unidade e na época, grava o preço do momento, calcula o total |
+| GET | `/pedidos` | Autenticado | Lista pedidos. Filtros `canalPedido`, `status`, `id_unidade`, `data_inicio`, `data_fim`. Cliente vê só os seus, equipe só a própria unidade |
 | GET | `/pedidos/{id}` | Dono, equipe da unidade, MATRIZ | Detalhe com itens e pagamentos |
 | GET | `/pedidos/{id}/status` | Dono, equipe da unidade, MATRIZ | Consulta leve para acompanhamento |
 | PATCH | `/pedidos/{id}/status` | FUNCIONARIO, GERENTE | Avança: `PRONTO`, depois `RETIRADO` |
 | POST | `/pedidos/{id}/pagamentos` | Dono, FUNCIONARIO, GERENTE | Solicita o pagamento ao gateway (202) |
 | GET | `/pedidos/{id}/pagamentos` | Dono, equipe da unidade, MATRIZ | Tentativas de pagamento do pedido |
 | POST | `/pagamentos/retorno` | Gateway (cabeçalho `X-API-Key`) | Webhook com `APROVADO`, `NEGADO` ou `ERRO`. Idempotente |
+| GET | `/auditoria` | GERENTE (da unidade), MATRIZ | Registros de ações sensíveis. Filtros `id_pedido` e `acao` |
 
 Exemplos (PowerShell ou Linux/macOS com `curl`):
 
@@ -41,6 +55,25 @@ curl "http://127.0.0.1:5000/api/v1/unidades/2/cardapio?data=2026-06-15"
 ```
 
 No cardápio, o bolo de milho junino só aparece entre 01/06 e 31/07, e o quiosque (cozinha reduzida) não oferece ovo com queijo nem cuscuz. Sem `preco_local`, vale o preço base do sabor.
+
+## Arquitetura em camadas
+
+| Camada | Onde fica | Responsabilidade |
+|--------|-----------|------------------|
+| API (interface) | `app/routes/`, `app/schemas/`, `app/security.py`, `app/openapi.py` | Rotas, validação de entrada, autenticação, permissões e documentação |
+| Aplicação | `app/services/` | Casos de uso: criar pedido, solicitar pagamento, registrar retorno, avançar status, auditar |
+| Domínio | `app/models/`, `app/constants.py` | Entidades, status e transições permitidas |
+| Infraestrutura | `app/extensions.py`, `migrations/`, `app/services/gateway.py` | Banco (ORM e migrações) e integração de pagamento simulada |
+
+## LGPD e segurança
+
+- **Dados coletados e finalidade:** nome, CPF, e-mail, data de nascimento e cidade, usados só para identificar o cliente, registrar pedidos e pagamentos.
+- **Consentimento:** o cadastro exige `consentimento_lgpd: true`, e a data do aceite fica gravada.
+- **Minimização:** a resposta nunca devolve a senha e o CPF sai mascarado.
+- **Senha:** guardada com hash (Werkzeug), nunca em texto.
+- **Acesso:** autenticação por token JWT e autorização por perfil (Cliente, Funcionário, Gerente, Matriz), com escopo por unidade. O cliente só enxerga os próprios pedidos.
+- **Auditoria:** criação de pedido, mudança de status e pagamento geram registro em `auditoria`, consultável em `GET /auditoria`.
+- **Retenção (proposta):** dados de cliente inativo seriam anonimizados após prazo definido pela empresa. Não implementado no MVP.
 
 ## Fluxo do pedido e do pagamento
 
@@ -105,6 +138,8 @@ flask run
 
 A API sobe em `http://127.0.0.1:5000`. Teste: `http://127.0.0.1:5000/api/v1/unidades`.
 
+**Swagger (documentação interativa):** `http://127.0.0.1:5000/docs`. A especificação OpenAPI em JSON está em `http://127.0.0.1:5000/openapi.json`. Para testar rotas protegidas, faça `POST /auth/login`, copie o `access_token` e clique em *Authorize*. A página do Swagger carrega os arquivos visuais da internet (CDN), então precisa de conexão.
+
 No PyCharm: em *Settings > Project > Python Interpreter*, aponte para o `.venv` do projeto.
 Se o `flask` não for reconhecido no terminal, use `python -m flask ...`.
 
@@ -127,6 +162,8 @@ Essas senhas são só para desenvolvimento. Troque `SEED_PASSWORD` no `.env`. Pa
 python -m pytest -q
 ```
 
+São 180+ testes automatizados (autenticação, permissões, cardápio, pedidos, pagamento, auditoria e conferência da documentação OpenAPI contra as rotas reais). A coleção do Postman (`docs/`) tem 46 requisições com testes embutidos.
+
 ## Estrutura
 
 ```
@@ -138,9 +175,10 @@ app/
   security.py      JWT, perfis e escopo por unidade
   validacao.py     leitura e validação do corpo JSON
   cli.py           comando "flask seed"
-  models/          tabelas (cardapio, cliente, pedido, acesso)
+  models/          tabelas (cardapio, cliente, pedido, acesso e auditoria)
   schemas/         validação das entradas (Marshmallow)
-  services/        regras de negócio (cardápio, pedidos, pagamento, gateway simulado)
+  services/        regras de negócio (cardápio, pedidos, pagamento, auditoria, gateway simulado)
+  openapi.py       especificação OpenAPI (Swagger) em /docs
   routes/          endpoints (blueprints), finos: validam, chamam o serviço e respondem
   utils/           CPF e outros utilitários
 migrations/        histórico versionado do banco
