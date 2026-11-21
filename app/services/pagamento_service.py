@@ -4,7 +4,7 @@ from app.errors import ErroNegocio
 from app.extensions import db
 from app.models import Pagamento
 from app.security import UsuarioAtual
-from app.services import gateway
+from app.services import auditoria_service, gateway
 from app.services.pedido_service import (
     PAGAMENTO_EM_ANDAMENTO, exigir_acesso, obter_pedido, tem_pagamento_em_andamento,
 )
@@ -41,6 +41,7 @@ def solicitar_pagamento(usuario: UsuarioAtual, id_pedido: int) -> Pagamento:
             [{"id_pagamento": pagamento.id}],
         )
     pagamento.id_status = int(StatusPagamentoId.PROCESSANDO)
+    auditoria_service.registrar(usuario, "PAGAMENTO_SOLICITADO", pedido.id, f"transacao={pagamento.id_transacao_externa}")
     db.session.commit()
     return pagamento
 
@@ -62,6 +63,7 @@ def registrar_retorno(dados: dict):
     pagamento.data_retorno = tempo.agora_utc()
     if alvo == int(StatusPagamentoId.EFETUADO) and pedido.id_status == int(StatusPedidoId.AGUARDANDO_PAGAMENTO):
         pedido.id_status = int(StatusPedidoId.EM_PRODUCAO)
+    auditoria_service.registrar(None, "PAGAMENTO_RETORNO", pedido.id, f"{dados['resultado']}; transacao={pagamento.id_transacao_externa}")
     db.session.commit()
     return pagamento, pedido, False
 

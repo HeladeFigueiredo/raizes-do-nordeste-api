@@ -15,7 +15,13 @@ class CadastroSchema(Schema):
     email = _campo(fields.Email, "E-mail inválido.", required=True)
     senha = _campo(fields.String, required=True, validate=validate.Length(min=8, max=72, error="A senha deve ter entre 8 e 72 caracteres."))
     data_nascimento = _campo(fields.Date, "Use o formato AAAA-MM-DD.", required=True)
+    consentimento_lgpd = _campo(fields.Boolean, "Use true ou false.", required=True, truthy={True}, falsy={False})
     cidade = fields.String(load_default=None, validate=validate.Length(max=80, error="A cidade deve ter até 80 caracteres."))
+
+    @validates("consentimento_lgpd")
+    def _valida_consentimento(self, valor, **kwargs):
+        if valor is not True:
+            raise ValidationError("É necessário aceitar o tratamento dos dados pessoais (LGPD) para se cadastrar.")
 
     @validates("cpf")
     def _valida_cpf(self, valor, **kwargs):

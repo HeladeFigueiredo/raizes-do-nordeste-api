@@ -13,7 +13,8 @@ def _cliente_json(c: Cliente) -> dict:
     return {
         "id": c.id, "nome": c.nome, "email": c.email, "cpf": mascarar_cpf(c.cpf),
         "data_nascimento": c.data_nascimento.isoformat(), "idade": c.idade,
-        "cidade": c.cidade,
+        "cidade": c.cidade, "consentimento_lgpd": c.consentimento_lgpd,
+        "data_consentimento": c.data_consentimento.isoformat() + "Z" if c.data_consentimento else None,
     }
 
 

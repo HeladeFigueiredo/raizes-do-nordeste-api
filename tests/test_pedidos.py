@@ -68,10 +68,10 @@ def test_cliente_nao_usa_o_canal_balcao(seeded, client):
     assert r.status_code == 422 and r.get_json()["erro"] == "CANAL_NAO_PERMITIDO"
 
 
-@pytest.mark.parametrize("canal", ["APP", "TOTEM", "PICKUP"])
+@pytest.mark.parametrize("canal", ["APP", "TOTEM", "PICKUP", "WEB"])
 def test_canais_do_cliente(seeded, client, canal):
     r = pedir(client, CLIENTE, [item("Queijo")], canal=canal)
-    assert r.status_code == 201 and r.get_json()["canal"] == canal
+    assert r.status_code == 201 and r.get_json()["canalPedido"] == canal
 
 
 def test_item_indisponivel_na_unidade_reduzida(seeded, client):
@@ -121,24 +121,24 @@ def test_unidade_inexistente(seeded, client):
     {"itens": [{"id_sabor": 1, "quantidade": 1.5}]},
     {"itens": [{"quantidade": 1}]},
     {"itens": "queijo"},
-    {"canal": "CARRIER_PIGEON"},
-    {"canal": None},
+    {"canalPedido": "CARRIER_PIGEON"},
+    {"canalPedido": None},
 ])
 def test_pedido_com_dados_invalidos(seeded, client, ajuste):
-    corpo = {"id_unidade": unidade("COMPLETA"), "canal": "APP", "itens": [{"id_sabor": 1, "quantidade": 1}], **ajuste}
+    corpo = {"id_unidade": unidade("COMPLETA"), "canalPedido": "APP", "itens": [{"id_sabor": 1, "quantidade": 1}], **ajuste}
     r = client.post(f"{B}/pedidos", json=corpo, headers=cabecalho(client, CLIENTE))
     assert r.status_code == 400 and r.get_json()["erro"] == "DADOS_INVALIDOS"
 
 
 def test_erro_em_item_aponta_o_campo_exato(seeded, client):
-    corpo = {"id_unidade": unidade("COMPLETA"), "canal": "APP", "itens": [{"id_sabor": 1, "quantidade": 1}, {"id_sabor": 1, "quantidade": 0}]}
+    corpo = {"id_unidade": unidade("COMPLETA"), "canalPedido": "APP", "itens": [{"id_sabor": 1, "quantidade": 1}, {"id_sabor": 1, "quantidade": 0}]}
     r = client.post(f"{B}/pedidos", json=corpo, headers=cabecalho(client, CLIENTE))
     assert {d["campo"] for d in r.get_json()["detalhes"]} == {"itens[1].quantidade"}
 
 
 def test_campos_obrigatorios_do_pedido(seeded, client):
     r = client.post(f"{B}/pedidos", json={}, headers=cabecalho(client, CLIENTE))
-    assert {d["campo"] for d in r.get_json()["detalhes"]} == {"id_unidade", "canal", "itens"}
+    assert {d["campo"] for d in r.get_json()["detalhes"]} == {"id_unidade", "canalPedido", "itens"}
 
 
 def test_quantidade_somada_acima_do_limite(seeded, client):
@@ -147,7 +147,7 @@ def test_quantidade_somada_acima_do_limite(seeded, client):
 
 
 def test_criar_pedido_exige_login_e_perfil(seeded, client):
-    corpo = {"id_unidade": unidade("COMPLETA"), "canal": "APP", "itens": [item("Queijo")]}
+    corpo = {"id_unidade": unidade("COMPLETA"), "canalPedido": "APP", "itens": [item("Queijo")]}
     assert client.post(f"{B}/pedidos", json=corpo).status_code == 401
     assert client.post(f"{B}/pedidos", json=corpo, headers=cabecalho(client, "matriz")).status_code == 403
 
@@ -201,7 +201,19 @@ def test_filtro_por_data_e_paginacao(seeded, client):
     assert len(pagina["itens"]) == 1 and pagina["total"] == 2 and "itens" not in pagina["itens"][0]
 
 
-@pytest.mark.parametrize("consulta", ["status=VOANDO", "data_inicio=ontem", "id_unidade=abc", "pagina=0", "tamanho=500"])
+def test_filtro_por_canal_pedido(seeded, client):
+    pedir(client, CLIENTE, [item("Queijo")], canal="APP")
+    pedir(client, CLIENTE, [item("Queijo")], canal="TOTEM")
+    pedir(client, CLIENTE, [item("Queijo")], canal="TOTEM")
+    h = cabecalho(client, "matriz")
+    assert client.get(f"{B}/pedidos?canalPedido=TOTEM", headers=h).get_json()["total"] == 2
+    assert client.get(f"{B}/pedidos?canalPedido=app", headers=h).get_json()["total"] == 1
+    assert client.get(f"{B}/pedidos?canalPedido=WEB", headers=h).get_json()["total"] == 0
+    combinado = client.get(f"{B}/pedidos?canalPedido=TOTEM&status=AGUARDANDO_PAGAMENTO", headers=h).get_json()
+    assert combinado["total"] == 2 and all(p["canalPedido"] == "TOTEM" for p in combinado["itens"])
+
+
+@pytest.mark.parametrize("consulta", ["status=VOANDO", "canalPedido=POMBO", "data_inicio=ontem", "id_unidade=abc", "pagina=0", "tamanho=500"])
 def test_filtros_invalidos(seeded, client, consulta):
     r = client.get(f"{B}/pedidos?{consulta}", headers=cabecalho(client, "matriz"))
     assert r.status_code == 400 and r.get_json()["erro"] == "PARAMETRO_INVALIDO"

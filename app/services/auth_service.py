@@ -5,6 +5,7 @@ from app.constants import PERFIL_CLIENTE
 from app.errors import ErroNegocio
 from app.extensions import db
 from app.models import Cliente, Usuario
+from app.models.base import agora
 from app.security import gerar_token
 from app.utils.cpf import formatar_cpf
 
@@ -21,6 +22,7 @@ def cadastrar_cliente(dados: dict) -> Cliente:
     cliente = Cliente(
         nome=dados["nome"].strip(), cpf=cpf, email=email,
         data_nascimento=dados["data_nascimento"], cidade=dados.get("cidade"),
+        consentimento_lgpd=True, data_consentimento=agora(),
     )
     cliente.definir_senha(dados["senha"])
     db.session.add(cliente)

@@ -20,8 +20,8 @@ class PedidoSchema(Schema):
         unknown = EXCLUDE  # valor_total, status e outros campos enviados pelo cliente são ignorados
 
     id_unidade = campo(fields.Integer, INTEIRO, required=True, strict=True)
-    canal = campo(fields.String, required=True,
-                  validate=validate.OneOf(CANAIS_PEDIDO, error="Canal inválido. Use APP, TOTEM, BALCAO ou PICKUP."))
+    canal = campo(fields.String, required=True, data_key="canalPedido",
+                  validate=validate.OneOf(CANAIS_PEDIDO, error="Canal inválido. Use APP, TOTEM, BALCAO, PICKUP ou WEB."))
     itens = campo(fields.List, "Envie uma lista de itens.", cls_or_instance=fields.Nested(ItemPedidoSchema), required=True,
                   validate=validate.Length(min=1, max=30, error="O pedido deve ter de 1 a 30 itens."))
     # Só a equipe usa: identifica o cliente de uma venda assistida. Para o cliente logado é ignorado.

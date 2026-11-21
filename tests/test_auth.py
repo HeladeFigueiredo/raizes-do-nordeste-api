@@ -1,13 +1,16 @@
+import pytest
 from datetime import timedelta
 
 from flask_jwt_extended import create_access_token
 
+from app.extensions import db
 from app.models import Cliente
 from app.utils.cpf import cpf_valido, formatar_cpf, mascarar_cpf
 
 CADASTRO_VALIDO = {
     "nome": "Maria da Silva", "cpf": "529.982.247-25", "email": "Maria@Exemplo.com",
     "senha": "senhaforte1", "data_nascimento": "1998-03-10", "cidade": "Olinda",
+    "consentimento_lgpd": True,
 }
 
 
@@ -51,7 +54,26 @@ def test_cadastro_campos_obrigatorios(client):
     corpo = r.get_json()
     assert corpo["erro"] == "DADOS_INVALIDOS"
     campos = {d["campo"] for d in corpo["detalhes"]}
-    assert {"nome", "cpf", "email", "senha", "data_nascimento"} <= campos
+    assert {"nome", "cpf", "email", "senha", "data_nascimento", "consentimento_lgpd"} <= campos
+
+
+def test_cadastro_registra_o_consentimento_lgpd(client):
+    r = client.post("/api/v1/auth/cadastro", json=CADASTRO_VALIDO)
+    assert r.status_code == 201
+    corpo = r.get_json()
+    assert corpo["consentimento_lgpd"] is True and corpo["data_consentimento"].endswith("Z")
+    with client.application.app_context():
+        cliente = db.session.get(Cliente, corpo["id"])
+        assert cliente.consentimento_lgpd is True and cliente.data_consentimento is not None
+
+
+@pytest.mark.parametrize("valor", [False, "sim", None])
+def test_cadastro_exige_o_aceite_da_lgpd(client, valor):
+    r = client.post("/api/v1/auth/cadastro", json={**CADASTRO_VALIDO, "consentimento_lgpd": valor})
+    assert r.status_code == 400 and r.get_json()["erro"] == "DADOS_INVALIDOS"
+    assert "consentimento_lgpd" in {d["campo"] for d in r.get_json()["detalhes"]}
+    with client.application.app_context():
+        assert Cliente.query.count() == 0
 
 
 def test_cadastro_cpf_invalido(client):

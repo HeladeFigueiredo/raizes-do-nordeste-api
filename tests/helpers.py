@@ -27,7 +27,7 @@ def item(nome, quantidade=1):
 
 
 def pedir(client, login, itens, id_unidade=None, canal="APP", **extra):
-    corpo = {"id_unidade": id_unidade or unidade("COMPLETA"), "canal": canal, "itens": itens, **extra}
+    corpo = {"id_unidade": id_unidade or unidade("COMPLETA"), "canalPedido": canal, "itens": itens, **extra}
     return client.post(f"{B}/pedidos", json=corpo, headers=cabecalho(client, login))
 
 
@@ -74,6 +74,7 @@ def novo_funcionario(id_unidade, login="func_quiosque", perfil="FUNCIONARIO"):
 
 def cadastrar_cliente(client, email="outra@exemplo.com", cpf="935.411.347-80"):
     r = client.post(f"{B}/auth/cadastro", json={
-        "nome": "Outra Cliente", "cpf": cpf, "email": email, "senha": "senha123", "data_nascimento": "1990-01-01"})
+        "nome": "Outra Cliente", "cpf": cpf, "email": email, "senha": "senha123", "data_nascimento": "1990-01-01",
+        "consentimento_lgpd": True})
     assert r.status_code == 201, r.get_json()
     return email

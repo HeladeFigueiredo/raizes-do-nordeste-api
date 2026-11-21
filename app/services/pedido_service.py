@@ -10,7 +10,7 @@ from app.errors import ErroNegocio
 from app.extensions import db
 from app.models import Cliente, ItemPedido, Pedido, ProdutoUnidade, Sabor
 from app.security import UsuarioAtual, exigir_unidade
-from app.services import cardapio_service
+from app.services import auditoria_service, cardapio_service
 from app.utils import tempo
 
 CENTAVOS = Decimal("0.01")
@@ -89,13 +89,15 @@ def criar_pedido(usuario: UsuarioAtual, dados: dict) -> Pedido:
     pedido.itens = itens
     pedido.valor_total = pedido.calcular_total().quantize(CENTAVOS)
     db.session.add(pedido)
+    db.session.flush()
+    auditoria_service.registrar(usuario, "PEDIDO_CRIADO", pedido.id, f"canalPedido={canal}; total={pedido.valor_total}")
     db.session.commit()
     return pedido
 
 
 # ---------- consulta ----------
 def listar_pedidos(usuario: UsuarioAtual, id_unidade: Optional[int], status: Optional[str],
-                   data_inicio: Optional[date], data_fim: Optional[date]):
+                   data_inicio: Optional[date], data_fim: Optional[date], canal: Optional[str] = None):
     consulta = Pedido.query
     if usuario.e_cliente:
         consulta = consulta.filter(Pedido.id_cliente == usuario.id)
@@ -105,6 +107,8 @@ def listar_pedidos(usuario: UsuarioAtual, id_unidade: Optional[int], status: Opt
         consulta = consulta.filter(Pedido.id_unidade == usuario.id_unidade)
     if id_unidade is not None:
         consulta = consulta.filter(Pedido.id_unidade == id_unidade)
+    if canal:
+        consulta = consulta.filter(Pedido.canal == canal)
     if status:
         consulta = consulta.filter(Pedido.id_status == int(StatusPedidoId[status]))
     if data_inicio:
@@ -131,5 +135,6 @@ def avancar_status(usuario: UsuarioAtual, id_pedido: int, codigo: str) -> Pedido
         raise ErroNegocio("TRANSICAO_INVALIDA", f"Não é possível ir de «{_nome(atual)}» para «{_nome(novo)}».", 409)
 
     pedido.id_status = int(novo)
+    auditoria_service.registrar(usuario, "STATUS_ALTERADO", pedido.id, f"{atual.name} -> {novo.name}")
     db.session.commit()
     return pedido

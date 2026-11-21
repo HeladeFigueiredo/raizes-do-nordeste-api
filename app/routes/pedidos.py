@@ -2,7 +2,7 @@ from datetime import date
 
 from flask import Blueprint, jsonify, request
 
-from app.constants import PERFIL_CLIENTE, PERFIL_FUNCIONARIO, StatusPedidoId
+from app.constants import CANAIS_PEDIDO, PERFIL_CLIENTE, PERFIL_FUNCIONARIO, StatusPedidoId
 from app.errors import ErroNegocio
 from app.schemas.pedido import PedidoSchema, StatusSchema
 from app.security import autenticado, perfis_permitidos, usuario_atual
@@ -45,14 +45,19 @@ def criar_pedido():
 @bp.get("/pedidos")
 @autenticado
 def listar_pedidos():
-    """Lista pedidos (mais recentes primeiro). Filtros: id_unidade, status, data_inicio, data_fim. Cliente vê só os seus."""
+    """Lista pedidos (mais recentes primeiro). Filtros: canalPedido, status, id_unidade, data_inicio, data_fim. Cliente vê só os seus."""
     pagina, tamanho = parametros_paginacao()
     status = request.args.get("status")
     if status:
         status = status.upper()
         if status not in StatusPedidoId.__members__:
             raise ErroNegocio("PARAMETRO_INVALIDO", "Status inválido. Valores: " + ", ".join(StatusPedidoId.__members__), 400)
-    consulta = servico.listar_pedidos(usuario_atual(), _inteiro("id_unidade"), status, _data("data_inicio"), _data("data_fim"))
+    canal = request.args.get("canalPedido")
+    if canal:
+        canal = canal.upper()
+        if canal not in CANAIS_PEDIDO:
+            raise ErroNegocio("PARAMETRO_INVALIDO", "canalPedido inválido. Valores: " + ", ".join(CANAIS_PEDIDO), 400)
+    consulta = servico.listar_pedidos(usuario_atual(), _inteiro("id_unidade"), status, _data("data_inicio"), _data("data_fim"), canal)
     pedidos, total = paginar(consulta, pagina, tamanho)
     return jsonify({"itens": [pedido_json(p, detalhado=False) for p in pedidos], "pagina": pagina, "tamanho": tamanho, "total": total})
 

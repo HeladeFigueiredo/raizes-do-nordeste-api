@@ -1,5 +1,5 @@
 """Comandos de linha de comando. Uso: flask seed"""
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 import click
@@ -81,7 +81,8 @@ def _dados_de_exemplo(senha: str):
         db.session.add(usuario)
 
     cliente = Cliente(nome="Cliente Exemplo", cpf="444.444.444-44", email="cliente@exemplo.com",
-                      data_nascimento=date(1995, 5, 20), cidade="Recife")
+                      data_nascimento=date(1995, 5, 20), cidade="Recife",
+                      consentimento_lgpd=True, data_consentimento=datetime.now(timezone.utc))
     cliente.definir_senha(senha)
     db.session.add(cliente)
 

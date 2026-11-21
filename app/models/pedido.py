@@ -33,7 +33,7 @@ class Pedido(db.Model):
     id_status: Mapped[int] = mapped_column(
         db.ForeignKey("status_pedido.id"), nullable=False, default=int(StatusPedidoId.AGUARDANDO_PAGAMENTO)
     )
-    canal: Mapped[str] = mapped_column(db.String(10), nullable=False)  # APP, TOTEM, BALCAO ou PICKUP
+    canal: Mapped[str] = mapped_column("canal_pedido", db.String(10), nullable=False)  # APP, TOTEM, BALCAO, PICKUP ou WEB
     valor_total: Mapped[Decimal] = mapped_column(db.Numeric(10, 2), nullable=False, default=0)
     data_pedido: Mapped[datetime] = mapped_column(nullable=False, default=agora)
 

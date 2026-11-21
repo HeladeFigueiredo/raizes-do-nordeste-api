@@ -1,5 +1,5 @@
 """Cliente do aplicativo."""
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -18,6 +18,9 @@ class Cliente(db.Model):
     senha_hash: Mapped[str] = mapped_column(db.String(255), nullable=False)
     data_nascimento: Mapped[date] = mapped_column(db.Date, nullable=False)
     cidade: Mapped[Optional[str]] = mapped_column(db.String(80))
+    # LGPD: aceite do tratamento dos dados (finalidade: pedidos e pagamentos) e quando foi dado
+    consentimento_lgpd: Mapped[bool] = mapped_column(db.Boolean, nullable=False, default=False)
+    data_consentimento: Mapped[Optional[datetime]] = mapped_column(db.DateTime)
 
     pedidos = relationship("Pedido", back_populates="cliente")
 

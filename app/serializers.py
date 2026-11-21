@@ -60,10 +60,17 @@ def item_pedido_json(i) -> dict:
 
 def pedido_json(p, detalhado: bool = True) -> dict:
     corpo = {
-        "id": p.id, "id_cliente": p.id_cliente, "id_unidade": p.id_unidade, "canal": p.canal,
+        "id": p.id, "id_cliente": p.id_cliente, "id_unidade": p.id_unidade, "canalPedido": p.canal,
         **status_pedido_json(p.id_status), "valor_total": dinheiro(p.valor_total), "data_pedido": datahora(p.data_pedido),
     }
     if detalhado:
         corpo["itens"] = [item_pedido_json(i) for i in p.itens]
         corpo["pagamentos"] = [pagamento_json(x) for x in sorted(p.pagamentos, key=lambda x: x.id)]
     return corpo
+
+
+def auditoria_json(a) -> dict:
+    return {
+        "id": a.id, "tipo_ator": a.tipo_ator, "id_ator": a.id_ator, "id_pedido": a.id_pedido,
+        "acao": a.acao, "detalhe": a.detalhe, "data_acao": datahora(a.data_acao),
+    }

@@ -1,8 +1,8 @@
 """criacao inicial das tabelas
 
-Revision ID: 3554ab11486d
+Revision ID: eaf94fe867b6
 Revises: 
-Create Date: 2026-11-21 12:45:05.389211
+Create Date: 2026-11-21 13:33:07.297753
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '3554ab11486d'
+revision = 'eaf94fe867b6'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -26,6 +26,8 @@ def upgrade():
     sa.Column('senha_hash', sa.String(length=255), nullable=False),
     sa.Column('data_nascimento', sa.Date(), nullable=False),
     sa.Column('cidade', sa.String(length=80), nullable=True),
+    sa.Column('consentimento_lgpd', sa.Boolean(), nullable=False),
+    sa.Column('data_consentimento', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('cpf'),
     sa.UniqueConstraint('email')
@@ -79,7 +81,7 @@ def upgrade():
     sa.Column('id_cliente', sa.Integer(), nullable=True),
     sa.Column('id_unidade', sa.Integer(), nullable=False),
     sa.Column('id_status', sa.Integer(), nullable=False),
-    sa.Column('canal', sa.String(length=10), nullable=False),
+    sa.Column('canal_pedido', sa.String(length=10), nullable=False),
     sa.Column('valor_total', sa.Numeric(precision=10, scale=2), nullable=False),
     sa.Column('data_pedido', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['id_cliente'], ['cliente.id'], ),
@@ -97,6 +99,17 @@ def upgrade():
     sa.ForeignKeyConstraint(['id_produto'], ['produto.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('id_produto', 'nome', name='uq_produto_sabor')
+    )
+    op.create_table('auditoria',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('tipo_ator', sa.String(length=10), nullable=False),
+    sa.Column('id_ator', sa.Integer(), nullable=True),
+    sa.Column('id_pedido', sa.Integer(), nullable=True),
+    sa.Column('acao', sa.String(length=40), nullable=False),
+    sa.Column('detalhe', sa.String(length=255), nullable=True),
+    sa.Column('data_acao', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['id_pedido'], ['pedido.id'], ),
+    sa.PrimaryKeyConstraint('id')
     )
     op.create_table('item_pedido',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -152,6 +165,7 @@ def downgrade():
     op.drop_table('produto_unidade')
     op.drop_table('pagamento')
     op.drop_table('item_pedido')
+    op.drop_table('auditoria')
     op.drop_table('sabor')
     op.drop_table('pedido')
     op.drop_table('equipe')
